@@ -293,26 +293,3 @@ struct token {
 ```
 
 우리의 compiler writing journey의 다음 파트에서, 우리는 우리의 input files의 문법을 해석하기 위해, recursive descent parser를 구성할 것이고, 각 파일에 대해 최종 값을 계산하고 출력할 것이다.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
