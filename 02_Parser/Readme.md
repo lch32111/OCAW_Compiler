@@ -396,43 +396,72 @@ $ make
 cc -o parser -g expr.c interp.c main.c scan.c tree.c
 ```
 
+나는 너가 parser를 테스트할 몇 가지 input files들을제공하지만, 물론 너는 너 자신만의 것을 만들 수 있다. 기억해라, 그 계산된 결과들은 부정확하지만,그 parser는 연속되는 숫자들, 연속하는 operators 그리고 input의 끝에 없는 숫자 같은 input errors들을탐지할 수 있어야 한다. 나는 또한 interpreter에 디버깅 코드를 추가했다. 그래서 너는 어떤 AST tree nodes가 어떤 순서로 구해지는지 볼 수 있다.
+
+```shell
+$ cat input01
+2 + 3 * 5 - 8 / 3
+
+$ ./parser input01
+int 2
+int 3
+int 5
+int 8
+int 3
+8 / 3
+5 - 2
+3 * 3
+2 + 9
+11
+
+$ cat input02
+13 -6+  4*
+5
+       +
+08 / 3
+
+$ ./parser input02
+int 13
+int 6
+int 4
+int 5
+int 8
+int 3
+8 / 3
+5 + 2
+4 * 7
+6 + 28
+13 - 34
+-21
+
+$ cat input03
+12 34 + -56 * / - - 8 + * 2
+
+$ ./parser input03
+unknown token in arithop() on line 1
+
+$ cat input04
+23 +
+18 -
+45.6 * 2
+/ 18
+
+$ ./parser input04
+Unrecognised character . on line 3
+
+$ cat input05
+23 * 456abcdefg
+
+$ ./parser input05
+Unrecognised character a on line 1
+```
 
 
 
+## Conclusion and What's next
 
+parser은 언어의 문법을 인지하고, 컴파일러에 대한input이 이 문법에 순응하는지를 체크한다. 만약 그렇지 않는다면, 그 parser은 에러 메세지를 출력해야 한다. 우리의 expression grammar는 재귀적이기 때문에, 우리는 우리의 expressions를 인지하기 위해 recursive descent parser를 작성하는 것을 선택했다.
 
+지금 당장 parser는 작동한다. 위의 output에 의해 보여지듯이,그러나 그것은 input의 semantics을 옳바르게 얻는 것을 실패한다. 다시 말해서, 그것은 그 expressions의 올바른 값을 계산하지 않는다.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+우리의 compiler writing journey의 다음 부분에서, 우리는 그 parser를 수정할 것인데, 그것이 올바른 수학 결과들을 얻기 위해 expressions의 semantic analysis를 하도록 하기 위해서이다.
