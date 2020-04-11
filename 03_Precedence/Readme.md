@@ -53,7 +53,7 @@ number:  T_INTLIT
          ;
 ```
 
-4개의 수학 연산자 사이에 어떠한 구부닝 없다는 것을 주목해라. 차이가 있도록 그 문법을 조정해보자:
+4개의 수학 연산자 사이에 어떠한 구분이 없다는 것을 주목해라. 차이가 있도록 그 문법을 조정해보자:
 
 ```
 expression: additive_expression
@@ -89,15 +89,127 @@ number:  T_INTLIT
 
 두 함수들은 어떤 것과 한 연산자들을 읽어들일 것이다. 그러고나서,  같은 precedence에 다음의 연산자들이 있는 동안, 각 함수는 그 입력을 좀 더 파싱할 것이고, 그 첫 번째 연산자로 왼쪽과 오른쪽 절반을 합친다.
 
-그러나, `additive_expr()`은 더 높은 precedence `multiplicative_expr()` 함수를 뒤로 미뤄둬야 할 것이다. 이것이 처리되는 방법이다.
+그러나, `additive_expr()`은 더 높은 우선순위를 갖는 `multiplicative_expr()` 함수 뒤로 미뤄둬야 할 것이다. 이것이 처리되는 방법이다.
 
 
 
+## `additive_expr()`
+
+```c
+// Return an AST tree whose root is a '+' or '-' binary operator
+struct ASTnode *additive_expr(void) 
+{
+  struct ASTnode *left, *right;
+  int tokentype;
+
+  // Get the left sub-tree at a higher precedence than us
+  left = multiplicative_expr();
+
+  // If no tokens left, return just the left node
+  tokentype = Token.token;
+  if (tokentype == T_EOF)
+    return (left);
+
+  // Loop working on token at our level of precedence
+  while (1) 
+  {
+    // Fetch in the next integer literal
+    scan(&Token);
+
+    // Get the right sub-tree at a higher precedence than us
+    right = multiplicative_expr();
+
+    // Join the two sub-trees with our low-precedence operator
+    left = mkastnode(arithop(tokentype), left, right, 0);
+
+    // And get the next token at our precedence
+    tokentype = Token.token;
+    if (tokentype == T_EOF)
+      break;
+  }
+
+  // Return whatever tree we have created
+  return (left);
+}
+```
+
+시작하자 마자, 우리는 즉시 첫 번째 operator가 high-precedence인 '*' 또는 '/'인 경우인 `multiplicative_expr()`를 호출한다.
+
+따라서, 우리가 `while` loop에 도달할 때, 우리는 '+' 또는 '-' operator를 가졌다는 것을 안다. 우리는 input에 남아있는 tokens이 없을 때 까지 loop한다. 즉, 우리가 T_EOF token에 도달할 때.
+
+loop 안에서, 우리는 어떠한 future operators가 우리보다 더 높은 precedence인 경우에 또 다시 `multiplicative_expr()`를 호출한다. 다시, 이것은 그것들이 그렇지 않을 때 return할 것이다.
+
+우리가 left and right sub-tree를 가진다면, 우리는 그것들을 우리가 loop에서 지난 번에 얻은 연산자와 결합한다. 이것은 반복하는데, 만약 우리가 `2 + 4  + 6`의 식을 가졌다면, 우리는 다음의 AST tree를 가지게 될 것이다:
+
+```
+       +
+      / \
+     +   6
+    / \
+   2   4
+```
+
+그러나 만약 `multiplicative_expr()`이 그것 자신의 higher precedence operators를 가진다면,우리는 sub-trees와 그것들 안의 여러가지 노드들을 결합할 것이다.
 
 
 
+## multiplicative_expr()
+
+```c
+// Return an AST tree whose root is a '*' or '/' binary operator
+struct ASTnode *multiplicative_expr(void) {
+  struct ASTnode *left, *right;
+  int tokentype;
+
+  // Get the integer literal on the left.
+  // Fetch the next token at the same time.
+  left = primary();
+
+  // If no tokens left, return just the left node
+  tokentype = Token.token;
+  if (tokentype == T_EOF)
+    return (left);
+
+  // While the token is a '*' or '/'
+  while ((tokentype == T_STAR) || (tokentype == T_SLASH)) {
+    // Fetch in the next integer literal
+    scan(&Token);
+    right = primary();
+
+    // Join that with the left integer literal
+    left = mkastnode(arithop(tokentype), left, right, 0);
+
+    // Update the details of the current token.
+    // If no tokens left, return just the left node
+    tokentype = Token.token;
+    if (tokentype == T_EOF)
+      break;
+  }
+
+  // Return whatever tree we have created
+  return (left);
+}
+```
+
+그 코드는 real integer literals를 얻기위해 `primary()` 호출하게 된다는 것을 제외하고 `additive_expr()`과 유사하다. 우리는 또한 우리의 높은 precedence level에 있는 operators 즉, '*', '/' operators를 가지게 될 때만 loop한다. 우리가 low precedence operator에 도달하자 마자, 우리는 이 시점에서 우리가 구성한 sub-tree를 반환한다. 이것은 low precedence operator를 다루기 위해 `additive_expr()`로 돌아간다.
 
 
+
+## Drawbacks of the Above (위의 단점들)
+
+explicit operator precedence로 recursive descent parser를 구성하는 위의 방법은 precedence의 올바른 level에도달하는데 필요한 모든 함수 호출 때문에 비효율적일 수 있다.  또한 각각의 수준의 operator precedence를 다뤄야 할 함수들이 있어야 만하고, 우리는 결국에 많은 코드 라인을 가지게 된다.
+
+
+
+## The Alternative: Pratt Parsing
+
+코드의 양을 줄이는 한 가지 방법은, grammar에서 explicit precedence를 복사하는 함수들을 갖는 대신에, 각 token과 연관된 precedence values의 값을 갖는 [Pratt parser](https://en.wikipedia.org/wiki/Pratt_parser)를 사용하는 것이다.
+
+이 시점에, 나는 Bob Nystrom이 작성한 [Pratt Parsers: Expression Parsing Made Easy](https://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/)를 읽기를 매우 추천한다. Pratt parsers는 여전히 나의 머리를 아프게 해서, 너가 할 수 있는 만큼 그리고 기본 개념에 편해지는 만큼만 읽어라.
+
+
+
+## expr.c : Pratt Parsing
 
 
 
