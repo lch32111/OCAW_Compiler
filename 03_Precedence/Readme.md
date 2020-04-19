@@ -285,9 +285,102 @@ struct ASTnode *binexpr(int ptp) {
 
 첫 째로, 이것이 이전의 parser functions과 같이 여전히 재귀라는 것에 주목해라. 이 번에, 우리는 우리가 호출되기 전에 발견되었던 token의 precedence level를 얻게된다. `main()` 은 가장 낮은 precedence인 0으로 우리를 호출할 것이지만, 우리는 더 높은 values로 호출할 것이다.
 
+너는 또한 코드가 `multiplicative_expr()`함수와 꽤 유사하다는 것을 알아야 한다 : integer literal를 읽고, 그 operator의 token type을 얻고, 그러고나서 트리를 구성하는 것을 반복한다.
+
+그 차이는 loop condition과 body이다:
+
+```c
+multiplicative_expr():
+  while ((tokentype == T_STAR) || (tokentype == T_SLASH)) {
+    scan(&Token); right = primary();
+
+    left = mkastnode(arithop(tokentype), left, right, 0);
+
+    tokentype = Token.token;
+    if (tokentype == T_EOF) return (left);
+  }
+
+binexpr():
+  while (op_precedence(tokentype) > ptp) {
+    scan(&Token); right = binexpr(OpPrec[tokentype]);
+
+    left = mkastnode(arithop(tokentype), left, right, 0);
+
+    tokentype = Token.token;
+    if (tokentype == T_EOF) return (left);
+  }
+```
+
+Pratt parser와 함께, 그 다음 operator는 우리의 현재 token보다 더 높은 우선순위를 가질 때, `primary()`로 다음 integer literal를 얻는 대신에, 우리는 operator precedence를 만드는 `binexpr(OpPrec[tokentype])`으로 호출한다.
+
+우리가 우리의 precedenc level 또는 더 낮은 token에 도달한다면, 우리는 단순히
+
+```c
+return (left);
+```
 
 
 
+이것은 많은 노드들과 더 높은 precedence에 있는 operators들을 가진 sub-tree이거나 또는 우리와 같은 precedence를 가진 operator에 대한 single integer literal일지도 모른다.
+
+이제 우리는 expression parsing을 하는 단일의 함수를 가지고 있다. 그것은 operator precedence를 enforce하는 작은 helper function을 사용하고, 따라서 우리의 언어를 semantics를 구현한다.
+
+
+
+## Putting Both Parsers Into Action
+
+너는 두 개의 프로그램들을 만들 수 있다, 각 파서를 가진 하나씩:
+
+```bash
+$ make parser                                        # Pratt Parser
+cc -o parser -g expr.c interp.c main.c scan.c tree.c
+
+$ make parser2                                       # Precedence Climbing
+cc -o parser2 -g expr2.c interp.c main.c scan.c tree.c
+```
+
+너는 또한 우리의 journey의 이전 파트의 같은 입력파일로 두 개의 parsers들을 테스트할 수 있다:
+
+```c
+$ make test
+(./parser input01; \
+ ./parser input02; \
+ ./parser input03; \
+ ./parser input04; \
+ ./parser input05)
+15                                       # input01 result
+29                                       # input02 result
+syntax error on line 1, token 5          # input03 result
+Unrecognised character . on line 3       # input04 result
+Unrecognised character a on line 1       # input05 result
+
+$ make test2
+(./parser2 input01; \
+ ./parser2 input02; \
+ ./parser2 input03; \
+ ./parser2 input04; \
+ ./parser2 input05)
+15                                       # input01 result
+29                                       # input02 result
+syntax error on line 1, token 5          # input03 result
+Unrecognised character . on line 3       # input04 result
+Unrecognised character a on line 1       # input05 result
+```
+
+
+
+## Conclusion and What's next
+
+아마 조금 뒤돌아보고 우리가 어디에 왔는지를 볼 시간이다. 우리는 이제 다음을 가진다:
+
+* 우리의 언어에서 tokens을 인지하고 반환하는 scanner
+* 우리의 문법을 인지하고, syntax errors를 보고하고, Abstract Syntax Tree를 구성하는 parser
+* 우리의 언어의 semantics를 구현하는 parser를 위한 precedence table
+* Abstract Syntax Tree를 depth-first로 탐색하고 그 input에서 expression의 결과를 계산하는 interpreter.
+
+우리가 아직 가지고 있지 않은 것은 compiler이다. 그러나 우리는 우리의 첫 번째 컴파일러를 만드는 것에 거의 가까워 져 있다.
+
+우리의 compiler writing journey의 다음 파트에서, 우리는 그 interpreter를 대체할 것이다. 그것의 장소에서, 우리는 maths operator를 가진 각 AST node에 대해 x86-64 assembly code를 생성하는 translator를 작성할 것이다. 우리는 또한 그 generator가 만들어내는 assembly code를 지원할 어떤 assembly preamble를과 postamble를 생성할 것이다.
 
 
 
