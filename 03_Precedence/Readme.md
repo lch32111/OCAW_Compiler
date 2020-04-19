@@ -211,6 +211,82 @@ explicit operator precedence로 recursive descent parser를 구성하는 위의 
 
 ## expr.c : Pratt Parsing
 
+나는 `expr2.c`에 대해 drop-in replacement인 `expr.c`에 Pratt parsing을구현했다.  투어를 시작해보자.
+
+첫 째로, 우리는 각 토큰에 대해 precedence levels를 결정한 어떤 코드가 필요하다:
+
+```c
+// Operator precedence for each token
+static int OpPrec[] = { 0, 10, 10, 20, 20,    0 };
+//                     EOF  +   -   *   /  INTLIT
+
+// Check that we have a binary operator and
+// return its precedence.
+static int op_precedence(int tokentype) {
+  int prec = OpPrec[tokentype];
+  if (prec == 0) {
+    fprintf(stderr, "syntax error on line %d, token %d\n", Line, tokentype);
+    exit(1);
+  }
+  return (prec);
+}
+```
+
+더 높은 숫자들 (예를들어, 20)은 낮은 숫자들 보다 더 높은 우선순위를 의미한다 (예를들어 10).
+
+이제, 너는 다음을 질문할지도 모른다 왜 너가 `OpPrec[]`으로 불려지는 look-up table를 가지고 있는데 함수를 가지고 있는지에 대해.  그 답은: syntaxx errors를 찾아내기 위해서이다.
+
+`234 101 + 12`같은 입력을 고려해라. 우리는 처음에서 두 번째 tokens을 스캔할 수 있다. 그러나 만약 우리가 간단히 두 번째 `101` precedence를 사용했다면, 우리는 그것이 operator인지 알아차리지 못할 것이다. 따라서, `op_precedence()` 함수는 올바른 grammar syntax를 강화한다.
+
+이제, 각 precedence level에 대한 함수를 갖는 대신에, 우리는 operator precedences의 테이블를 사용하는 단일의 expression function을 가지게 된다:
+
+```c
+// Return an AST tree whose root is a binary operator.
+// Parameter ptp is the previous token's precedence.
+struct ASTnode *binexpr(int ptp) {
+  struct ASTnode *left, *right;
+  int tokentype;
+
+  // Get the integer literal on the left.
+  // Fetch the next token at the same time.
+  left = primary();
+
+  // If no tokens left, return just the left node
+  tokentype = Token.token;
+  if (tokentype == T_EOF)
+    return (left);
+
+  // While the precedence of this token is
+  // more than that of the previous token precedence
+  while (op_precedence(tokentype) > ptp) {
+    // Fetch in the next integer literal
+    scan(&Token);
+
+    // Recursively call binexpr() with the
+    // precedence of our token to build a sub-tree
+    right = binexpr(OpPrec[tokentype]);
+
+    // Join that sub-tree with ours. Convert the token
+    // into an AST operation at the same time.
+    left = mkastnode(arithop(tokentype), left, right, 0);
+
+    // Update the details of the current token.
+    // If no tokens left, return just the left node
+    tokentype = Token.token;
+    if (tokentype == T_EOF)
+      return (left);
+  }
+
+  // Return the tree we have when the precedence
+  // is the same or lower
+  return (left);
+}
+```
+
+첫 째로, 이것이 이전의 parser functions과 같이 여전히 재귀라는 것에 주목해라. 이 번에, 우리는 우리가 호출되기 전에 발견되었던 token의 precedence level를 얻게된다. `main()` 은 가장 낮은 precedence인 0으로 우리를 호출할 것이지만, 우리는 더 높은 values로 호출할 것이다.
+
+
+
 
 
 
