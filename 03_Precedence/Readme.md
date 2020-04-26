@@ -381,22 +381,3 @@ Unrecognised character a on line 1       # input05 result
 우리가 아직 가지고 있지 않은 것은 compiler이다. 그러나 우리는 우리의 첫 번째 컴파일러를 만드는 것에 거의 가까워 져 있다.
 
 우리의 compiler writing journey의 다음 파트에서, 우리는 그 interpreter를 대체할 것이다. 그것의 장소에서, 우리는 maths operator를 가진 각 AST node에 대해 x86-64 assembly code를 생성하는 translator를 작성할 것이다. 우리는 또한 그 generator가 만들어내는 assembly code를 지원할 어떤 assembly preamble를과 postamble를 생성할 것이다.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
