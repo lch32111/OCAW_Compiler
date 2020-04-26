@@ -57,7 +57,7 @@ static int skip(void)
 // Scan and return an integer literal
 // value from the input file. Store
 // the value as a string in Text.
-static scanint(int c)
+static int scanint(int c)
 {
 	int k, val = 0;
 

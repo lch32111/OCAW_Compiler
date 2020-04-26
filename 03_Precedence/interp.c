@@ -13,7 +13,7 @@ static char* ASTop[] = { "+", "-", "*", "/" };
 // a final value.
 int interpretAST(struct ASTnode* n)
 {
-	int leftVal, rightVal;
+	int leftval, rightval;
 
 	// Get the left and right sub-tree values
 	if(n->left)

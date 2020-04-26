@@ -1,0 +1,2 @@
+pratt_parser : 
+	gcc -o pratt_parser -g expr.c interp.c main.c scan.c tree.c

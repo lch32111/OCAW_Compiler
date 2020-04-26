@@ -1,0 +1,2 @@
+Precedence_Climbing :
+	gcc -o precedence_climbing -g expr2.c interp.c main.c scan.c tree.c

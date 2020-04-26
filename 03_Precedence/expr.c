@@ -21,7 +21,7 @@ static struct ASTnode* primary(void)
 		scan(&Token);
 		return (n);
 	default:
-		fprintf(stderr, "syntax error on line %d, token %d\n", Line. Token.token);
+		fprintf(stderr, "syntax error on line %d, token %d\n", Line, Token.token);
 		exit(1);
 	}
 
@@ -35,7 +35,7 @@ int arithop(int tokentype)
 	case T_PLUS:
 		return (A_ADD);
 	case T_MINUS:
-		return (A_MINUS);
+		return (A_SUBTRACT);
 	case T_STAR:
 		return (A_MULTIPLY);
 	case T_SLASH:

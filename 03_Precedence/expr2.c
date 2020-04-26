@@ -16,7 +16,7 @@ static struct ASTnode* primary(void)
 	switch(Token.token)
 	{
 	case T_INTLIT:
-		n = mkastleaf(A_INTLIT, Token.intavlue);
+		n = mkastleaf(A_INTLIT, Token.intvalue);
 		scan(&Token);
 		return (n);
 	default:
@@ -50,7 +50,7 @@ struct ASTnode* additive_expr(void);
 // Return an AST tree whose root is a '*' or '/' binary operator
 struct ASTnode* multiplicative_expr(void)
 {
-	struct ASTnode* left, right;
+	struct ASTnode* left, * right;
 	int tokentype;
 
 	// Get the integer literal on the left
@@ -72,7 +72,7 @@ struct ASTnode* multiplicative_expr(void)
 		// Join that with the left integer litral
 		left = mkastnode(arithop(tokentype), left, right, 0);
 
-		toekntype = Token.type;
+		tokentype = Token.token;
 		if (tokentype == T_EOF)
 			break;
 	}
@@ -91,7 +91,7 @@ struct ASTnode* additive_expr(void)
 	left = multiplicative_expr();
 
 	// If no tokens left,return just the left node
-	tokentype = Token.type;
+	tokentype = Token.token;
 	if (tokentype == T_EOF)
 		return (left);
 
@@ -109,7 +109,7 @@ struct ASTnode* additive_expr(void)
 		left = mkastnode(arithop(tokentype), left, right, 0);
 
 		// And get the next token at our precedence
-		tokentype = Token.type;
+		tokentype = Token.token;
 		if (tokentype == T_EOF)
 			break;
 	}
