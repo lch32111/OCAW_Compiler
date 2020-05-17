@@ -243,13 +243,61 @@ Figure 4: **Integer 64-bitarithmetic operations.** 그것들은 32-bit counterpa
 6 }
 ```
 
+integers가 32bits이고, long integers가 64bits라는 것을 가정하여, 이 함쉥서 두  덧셈은 다음과 같이 진행된다. type conversion이 덧셈보다 더 높은 precedence를 가진다는 것을 회상해라. 그래서 line 3은 x가 64 bits로 변환되는 것을 요구하고, operand promotion에 의해, y 또한 변환된다. 그 Value `t1`은 그러고나서 64-bit addition으로 연산된다. 반면에, `t2`는 32-bit addition을 수행하고, 그러고나서 이 값을 64-bits로 확장하고나서 line 4에서 연산된다.
+
+이 함수를 위해 생성된 assembly code는 다음과 같다
+
+```assembly
+x86-64 version of function gfun
+Arguments in registers %rdi (x) and %rsi (y) 
+1 gfun: 
+2 	movslq 	%edi,%rax Convert x to long 
+3 	movslq 	%esi,%rdx Convert y to long 
+4 	addl 	%esi, %edi lower bits of t2 (32-bit addition) 
+5 	addq 	%rdx, %rax t1 (64-bit addition) 
+6 	movslq 	%edi,%rdi Sign extend to get t2 
+7 	orq 	%rdi, %rax Return t1 | t2 
+8 	ret
+```
+
+Local value `t1`은 처음에 arguments를 확장하여 연산된다. lines 2-3에 있는 `movslq` instructions은 registers `%rdi`와 `%rsi`에 있는 arguments의 lower 32 bits를 취하고, registers `%rax`, `%rdx`에 있는 64 bits로 sign extend한다. line 5에 있는 `addq` instruction은 그러고나서 `t1`를 얻기 위해 64-bit addition을 수행한다. `t2`의 값은 두 operands의 lower 32 bits에 32-bit addtion을 수행하여 연산된다 (line 4). 이 값은 line 6에서 64 bits로 sign extended 된다.
 
 
 
+### Practice Problem 2:
+
+인자들로 `a`, `b`, `c`, 그리고 `d`를 가지는 `arithprob`인  C 함수는 다음의 body를 갖는다:
+
+```c
+	return a * b + c * d;
+```
+
+이것은 다음의 x86-64 code로 컴파일된다:
+
+```assembly
+Arguments: a in %edi, b in %sil, c in %rdx, d in %ecx 
+1 arithprob: 
+2 movslq 	%ecx,%rcx 
+3 movsbl 	%sil,%esi 
+4 imulq 	%rdx, %rcx 
+5 imull 	%edi, %esi 
+6 leal 		(%rsi,%rcx), %eax 
+7 ret
+```
+
+그 arguments들과 return value 모두 다양한 길이를 가진 signed integers이다. 이 assembly code를 기반으로, `arithprobm`의 return과 argument types를 묘사하는 function prototype을 작성해라.
 
 
 
+우리는 `arithprob`의 코드를 한 단계씩 나아갈 수 있고, 다음의 것을 결정할 수 있다:
 
+1. 그 `movslq` instruction은 `d`를 long으로 sign extends한다. 이것은 `d`가 `int` type을 가지고 있고, `c`가 `long` type을 가진다는 것을 암시한다.
+2. 그 `movsbl` instruction은 `b`를 integer로 sign extend한다. 이것은 `b`가 `char` type을 가지고 있고, `a`가 `int` type을 가진다는 것을 의미한다.
+3. 그 합은 `leal` instruction으로 연산되는데, 그 return value가 `int` type을 가진다는 것을 가리킨다.
 
+이것으로 부터, 우리는 `arithprob`에 대한 unique prototype이 다음이라는 것을 결정할 수 있다:
 
+```c
+int arithprob(int a, char b, long c, int d);
+```
 
