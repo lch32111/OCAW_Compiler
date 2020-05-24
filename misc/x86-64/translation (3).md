@@ -80,7 +80,64 @@ $T_{MP} = 42$를 얻는다. **End Aside.**
 
 
 
-conditional operations의 어떤 형태를 구현하는 것의 대안 방법은 *conditional move* instructions을 사용하는 것이다.
+conditional operations의 어떤 형태를 구현하는 것의 대안 방법은 *conditional move* instructions을 사용하는 것이다. 이 접근법으로, *then-expr*과 *else-expr* 둘 다 evaluated 되고, *test-expr*의 evaluation을 기반으로 최종값이 선택된다. 이것은 다음의 추상화 코드로 설명될 수 있다:
+
+```
+	vt = then-expr;
+	v = else-expr;
+	if (test_expr) v = vt;
+```
+
+이 시퀀스에서 마지막 문장은 conditional move를 보여준다 - `vt` 값은 만약 그 tested condition이 유효하다면 `v`로 옮겨진다.
+
+
+
+| Instruction | Synonym | Move condtion     | Description                  |
+| ----------- | ------- | ----------------- | ---------------------------- |
+| cmove S, D  | cmovz   | ZF                | Equal / zero                 |
+| cmovne S, D | cmovnz  | ~ZF               | Not equal / not zero         |
+| cmovs S, D  |         | SF                | Negative                     |
+| cmovns S, D |         | ~SF               | Nonnegative                  |
+| cmovg S, D  | cmovnle | ~ (SF ^ OF) & ~ZF | Greater (signed >)           |
+| cmovge S, D | cmovnl  | ~ (SF ^ OF)       | Greater or equal (signed >=) |
+| cmovl S, D  | cmovnge | SF ^ OF           | Less (signed <)              |
+| cmovle S, D | cmovng  | (SF ^ OF) \| ZF   | Less or equal (signed <=)    |
+| cmova S, D  | cmovnbe | ~ CF & ~ ZF       | Above (unsigned > )          |
+| cmovae S, D | cmovnb  | ~CF               | Above or equal (Unsigned >=) |
+| cmovb S, D  | cmovnae | CF                | Below (unsigned <)           |
+| cmovbe S, D | cmovna  | CF \| ZF          | below or equal (unsigned <=) |
+
+Figure 6 : **`cmov` instructions**. 이 instructions은 move condition이 유효할 때 source value S를 그것의 destinaion D로 복사한다. 어떤 instructions은 "synonyms"을 갖는데, 같은 machin instruction에 대해 대안의 이름을 가진다.
+
+
+
+그림 6은 PentiumPro microprocessors의 도입과 함께 IA 32 instruction set에 추가된 conditional move instructions을 보여준다. 이러한 instructions의 각각은 두 개의 operands를 갖는다: source register 또는 memory location S, 그리고 destinaion register D. 다른 *set*과 *jump* selection에서 처럼, 이러한 instructions의 결과는 conditino codes의 결과에 의존한다.  그 source value는 memory 또는 source register에서 읽혀지지만, 명시된 조건이 유효한 경우메나 destination에 복사된다.
+
+source and destination values는 16, 32, or 64 bits long이 될 수 있다. Single byte conditional moves는 지원되지 않는다. operand length가 instruction name에 explicitly하게 인코딩되는 (예를들어, `movw`, `movl`, `movq`) unconditional instructions과 다르게,  conditional move operand lengths는 destination registers의 이름으로 유추될 수 있고, 그래서 그 같은 instruction name은 모든 operand lengths에 대해 사용될 수 있다.
+
+예제로서, GCC는 function `max`에 대해 다음의 코드를 생성한다
+
+```assembly
+x86-64 code generated for function max
+x in register %edi, y in %esi 
+1 max: 
+2 	cmpl %esi, %edi Compare x:y 
+3 	cmovge %edi, %esi if >=, then y=x 
+4 	movl %esi, %eax set y as return value 
+5 	ret
+```
+
+이 코드는 `x >= y`일 때, x로 y를 포함하는 register에 덮어쓰기 위해 conditional move를 사용한다.
+
+그 conditional move는 test의 outcome을 예측할 필요없이 구현될 수 있다. 그 processor는 간단히 그 코드를 evaluate하고, 그러고나서 destination register를 업데이하거나, 그것을 똑같이 유지한다. 같은 Intel Pentium 4 Xeon에서 그 코드를 동작시켜서, 우리는 테스트의 결과와 상관없이 호출당 약 10 cycles 요구하는 것을 알게 된다.
+
+
+
+**Practice Problem 3 :**
+
+다음의 C 함수에서, `OP`는 `#define`으로 미리 선언된 어떤 C 연산자이다.
+
+
 
 
 
