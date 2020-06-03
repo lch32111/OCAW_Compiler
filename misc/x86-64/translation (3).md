@@ -118,8 +118,8 @@ source and destination values는 16, 32, or 64 bits long이 될 수 있다. Sing
 예제로서, GCC는 function `max`에 대해 다음의 코드를 생성한다
 
 ```assembly
-x86-64 code generated for function max
-x in register %edi, y in %esi 
+	x86-64 code generated for function max
+	x in register %edi, y in %esi 
 1 max: 
 2 	cmpl %esi, %edi Compare x:y 
 3 	cmovge %edi, %esi if >=, then y=x 
@@ -137,7 +137,91 @@ x in register %edi, y in %esi
 
 다음의 C 함수에서, `OP`는 `#define`으로 미리 선언된 어떤 C 연산자이다.
 
+```c
+int arith(int x)
+{
+    return x OP 4;
+}
+```
 
+컴파일 될 떄, GCC는 다음의 x86-64 코드를 생성한다:
+
+```ㅁ느
+	x86-64 implementation of arith
+	x in register %edi
+1 arith:
+2	leal	3(%rdi), %eax
+3	cmpl	$-1, %edi
+4 	cmovle	%eax, %edi
+5	sarl	$2,	%edi
+6	movl	%edi,	%eax	return value in %eax
+7 	ret
+```
+
+> 난 못풀겠어서 바로 답을 본다. B가 주석이 있는 버전이라 그것부터 적는다. 이 문서가 이전것을 기반으로 해서 그런지 내가 아직 잘 이해가 되지 않는 문제들이 많다.
+
+B.  그 `comvle` instruction은 조건부로, x <= -1일 때, x를 x + 3로 숫자를 바꾼다.
+
+```
+	x86-64 implementation of arith
+	x in register %edi
+1 arith:
+2	leal	3(%rdi),	%eax 	x+3 -> return value(%eax) = x + 3
+3	cmpl	$-1,	%edi		compare x:-1 -> 
+4	cmovle	%eax,	%edi		if <= then x = x + 3
+5	sarl	$2,		%edi		x >>= 2
+6	movl	%edi,	%eax		return value in %eax
+7	ret
+```
+
+A. operator는 '/'이다. 우리는 이것이 right shifting하여 (see CS:APP Section 2.3.7) 2의 지수로 나누는 예제라는 것을 안다. k = 2로 shifting하기 전에, 우리는 dividend가 음수일 때 2^k - 1 = 3의 bias를 더한다.
+
+
+
+모든 conditional expressions이 conditional moves를 사용하여 컴파일될 수 없다. 좀 더 중요하게, 이전에 보여진 abstract code는 test outcome의 *then-expr*과 *else-expr* 둘 다 검사한다. 만약 그러한 두 expressions들 중 하나가 error condition 또는 side effect를 발생시킬 수 있다면, 이것은 유효하지 않은 행동을 이끌 수 있다. 예시처럼, 다음의 C 함수를 고려해라
+
+```c
+int cread(int* xp)
+{
+    return (xp ? *xp : 0);
+}
+```
+
+처음에, 이것은 pointer xp에 의해 지정된 값을 읽기위해 conditional move를 사용하여 컴파일하는 좋은 후보가 되는 것처럼 보인다. 다음의 assembly code에서 보이듯이:
+
+```asm
+	Invalid implementation of function cread
+	xp in register in %rdi
+1 cread:
+2	xorl	%eax,	%eax	Set 0 as return value
+3	testq	%rdi,	%rdi	Test xp
+4	cmovne	(%rdi),	%eax,	if !0, dereference xp to get return value
+5	ret
+```
+
+이 구현은 그러나 유효하지 않다. `cmovne` instruction (line 4)에 의한 `xp`의 dereference는 그 테스트가 실패할 때 발생하는데, null pointer dereferencing error를 발생시킨다. 대신에, 이 코드는 branching code를 사용하여 컴파일 되어야 한다.
+
+유사한 케이스는 두 개의 branches중 하나가 side effect를 발생시킬 때에도 유효하다. 다음의 함수에서 보여진다
+
+```c
+int lcount = 0;
+int se_max(int x, int y)
+{
+    return (x < y) ? (lcount++, y) : x;
+}
+```
+
+이 함수는 global 변수 lcount를 *then-expr*의 일부로서 증가시킨다. 따라서, branching code는 이 side effect가 test condition이 유효할때만 발생하도록 사용되어야 한다.
+
+conditional moves를 사용하는 것은 또한 항상 code 효율성을 개선하지 않는다. 예를들어, 만약 *then-expr*또는 *else-expr* evaluation 둘 중 하나가 상당한 연산을 요구한다면, 그러면 이 노력은 대응되는 조건이 유효하지 않을 때 낭비가 된다. GCC로 한 우리의 실험은, 그것이 오직 두 개의 expressions이 각각 단일 instruction으로 연산될 수 있을 때 conditional moves만을 사용하는 것을 가리킨다. 이것은 현재의 프로세서들에게 너무 보수적이다. 그것들의 high branch misprediction penalties를 고려한다면.
+
+
+
+### 5.2 Looping Constructs
+
+CS:APP Section 3.6.5에서, 우리는 C의 세 가지 looping constructs를 발견했다: `do-while`, `while`, 그리고 `for`. 이것들은 모두 `do-while`의 구조를 기반으로 공통 템플릿을 사용하여 IA32를 위해 컴파일 된다. 다른 loop 형태들은 CS:APP Figure 3.14에서 보여지듯이, `do-while`로 변형되었다.
+
+x86-64로, 우리는 더욱 풍부한 loop templates를 보게된다. `do-while`를 위한 template은 같게 남아있고, 몇몇 `while`과 `for` statements는 이 형태로 구현된다. 예를들어,....
 
 
 
