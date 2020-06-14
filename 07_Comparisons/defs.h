@@ -16,7 +16,7 @@ enum {
   T_STAR, T_SLASH, 
   T_EQ, T_NE,
   T_LT, T_GT, T_LE, T_GE,
-  T_INTLIT, T_SEMI, T_EQUALS, T_IDENT,
+  T_INTLIT, T_SEMI, T_ASSIGN, T_IDENT,
   // Keywords
   T_PRINT, T_INT
 };

@@ -26,7 +26,7 @@ int genAST(struct ASTnode *n, int reg) {
   case A_DIVIDE:
     return (cgdiv(leftreg, rightreg));
   case A_EQ:
-    return (cgequal(leftreg, rightreg));
+    return (cgnotequal(leftreg, rightreg));
   case A_NE:
     return (cgnotequal(leftreg, rightreg));
   case A_LT:
