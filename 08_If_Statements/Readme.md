@@ -85,3 +85,32 @@ L1:
 
 
 
+## Scanning the Tokens
+
+단일 문자 토큰들은 명백해야 하고, 나는 그것들을 스캔하는 코드를 주지 않을 것이다. 그 키워드들은 또한 꽤 명백해야 하지만, 나는 `scan.c`에서 `keyword()`의 스캐닝 코드를 줄 것이다:
+
+```c
+  switch (*s) {
+    case 'e':
+      if (!strcmp(s, "else"))
+        return (T_ELSE);
+      break;
+    case 'i':
+      if (!strcmp(s, "if"))
+        return (T_IF);
+      if (!strcmp(s, "int"))
+        return (T_INT);
+      break;
+    case 'p':
+      if (!strcmp(s, "print"))
+        return (T_PRINT);
+      break;
+  }
+```
+
+
+
+## The New BNF Grammar
+
+
+
