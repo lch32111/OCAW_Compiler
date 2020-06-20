@@ -112,5 +112,144 @@ L1:
 
 ## The New BNF Grammar
 
+우리의 문법이 커지기 시작하고 있다. 그래서 나는 그것을 어느정도 다시쓴다:
+
+```BNF
+compound_statement: '{' '}'		// empty, i.e. no statement
+	|	'{' statement '}'
+	|	'{' statement statements '}'
+	;
+
+statement: 	print_statement
+	|		declaration
+	|		assignment_statement
+	|		if_statement
+	;
+	
+print_statement: 'print' expression ';' ;
+
+declaration: 'int' identifier ';' ;
+
+assignment_statement: identifier '=' expression ';' 	;
+
+if_statement: 	if_head
+	|			if_head 'else' compound_statement
+	;
+
+if_head: 'if' '(' ture_false_expression ')' compound_statement;
+
+identifier: T_IDENT ;
+```
+
+나는 `true_false_expression`의 정의를 제외 했지만, 우리가 몇 가지 연산자를 더 추가하는 시점에 나는 그것을 추가할 것이다.
+
+IF 문을 위한 문법에 주목해라: 그것은 `if_head` ('else' 절이 없는) 이거나 또는 `if_head` 뒤에 'else'와 `compound_statement`가 나온다.
+
+나는 그들 자신만의 non-terminal name을 갖게 하기 위해 모든 다른 statement types들을 분리했다. 또한, 그 이전의 `statements` 의non-terminal은 이제 `compound_statement` non-terminal이고, 이것은 statements 주변에  '{' ... '}' 를 요구한다.
+
+> Chan 2020-06-20
+>
+> https://en.wikipedia.org/wiki/Terminal_and_nonterminal_symbols
+>
+> terminal과 non-terminal이 정확히 무엇인지 알 수 없어서 Google에서 compiler non-terminal이라고 검색하니 이런 위키가 있었다. 여기에서 example쪽을 보면 무엇이 terminal이고 nonterminal인지 나온다. 간단하게 말해서, 이런 BNF처럼 문법을 정의하는데 있어서, 재귀로 계속 타고 들어가게 만드는 것들은 non-terminal이 되는 것이고, 더 이상 들어갈 게 없으면 terminal이라 부른다.
+
+이것은 head에 있는 `compound_statement`가 '{'...'}'로 둘러싸여지고, 'else' 키워드 후에 어떤 `compound_statement`가 된다는 것을 의미한다. 그래서 만약 윌가 nested IF 문을 가진다면, 그것들은 다음처럼 보여야 한다:
+
+```
+  if (condition1 is true) {
+    if (condition2 is true) {
+      statements;
+    } else {
+      statements;
+    }
+  } else {
+    statements;
+  }
+```
+
+그리고 각 'else'가 어떤 것에 속해야 하는지에 대한 애매함이 없다. 이것은 dangling else problem을 해결한다. 나중에, 나는 '{'...'}'를 optional하게 만들 것이다.
+
+
+
+## Parsing Compound Statements
+
+그 옛날 `void statements()` 함수는 이제 `compound_statement()`이고, 이것 처럼 보인다:
+
+```c
+// Parse a compound statement
+// and return its AST
+struct ASTnode *compound_statement(void) {
+  struct ASTnode *left = NULL;
+  struct ASTnode *tree;
+
+  // Require a left curly bracket
+  lbrace();
+
+  while (1) {
+    switch (Token.token) {
+      case T_PRINT:
+        tree = print_statement();
+        break;
+      case T_INT:
+        var_declaration();
+        tree = NULL;            // No AST generated here
+        break;
+      case T_IDENT:
+        tree = assignment_statement();
+        break;
+      case T_IF:
+        tree = if_statement();
+        break;
+    case T_RBRACE:
+        // When we hit a right curly bracket,
+        // skip past it and return the AST
+        rbrace();
+        return (left);
+      default:
+        fatald("Syntax error, token", Token.token);
+    }
+
+    // For each new tree, either save it in left
+    // if left is empty, or glue the left and the
+    // new tree together
+    if (tree) {
+      if (left == NULL)
+        left = tree;
+      else
+        left = mkastnode(A_GLUE, left, NULL, tree, 0);
+    }
+  }
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
