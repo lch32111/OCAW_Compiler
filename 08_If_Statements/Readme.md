@@ -221,6 +221,155 @@ struct ASTnode *compound_statement(void) {
   }
 ```
 
+첫 째로, 그 코드가 parser에게 `lbrace()`로 compound statement의 시작에서 '{'와 부합하도록 강요한다는 것에 주목해라, 그래서 우리는 `rbrace()`로 끝나는 '}'와 매칭될 때만 종료할 수 있다.
+
+둘 째로, `print_statement()`, `assignment_statement()` 그리고 `if_statement()` 모두 AST tree를 반환한다. `compound_statement()`가 그렇게 하듯이. 우리의 이전 코드에서, `print_statement()`는 그 자체로 expression을 evaluate하기 위해 `genAST()`를 호출했었고, 그 이후에 `genprintint()`에 대한 호출이 다음에 나왔다. 유사하게, `assignment_statement()` 또한 할당을 하기 위해 `genAST()`를 호출했었다.
+
+음, 이것은 우리가 여기 저기에서 AST trees들을 가진다는 것을 의미한다. 이것은 단일 AST tree를 생성하고, 그것을 위해 assembly code를 생성하기 위해 `genAST()`를 한 번 호출하는 것은 말이 된다.
+
+이것은 의무는 아니다. 예를들어, SubC는 expressions을 위해 ASTs만을 생성한다. 언어의 구조적 부분들을 위해, statements 같이, SubC는 내가 compiler의 이전 부분에서 하고 있던 것처럼 그 코드 생성에 대한 특정한 호출을 만든다.
+
+이제 나는 parser로 전체 input에 대해 단일의 AST tree를 생성하기로 결정했다. 그 input이 파싱되기만 한다면, 그 assembly output은 한 AST tree로부터 생성되어질 수 있다.
+
+나중에, 아마도 각 함수에 대한 AST tree를 생성할 것이다. 나중에.
+
+
+
+## Parsing the IF Grammar
+
+우리는 recursive descent parser이기 때문에, IF statement를 파싱하는 것은 너무 나쁜 것이 아니다:
+
+```c
+// Parse an IF statement including
+// any optional ELSE clause
+// and return its AST
+struct ASTnode *if_statement(void) {
+  struct ASTnode *condAST, *trueAST, *falseAST = NULL;
+
+  // Ensure we have 'if' '('
+  match(T_IF, "if");
+  lparen();
+
+  // Parse the following expression
+  // and the ')' following. Ensure
+  // the tree's operation is a comparison.
+  condAST = binexpr(0);
+
+  if (condAST->op < A_EQ || condAST->op > A_GE)
+    fatal("Bad comparison operator");
+  rparen();
+
+  // Get the AST for the compound statement
+  trueAST = compound_statement();
+
+  // If we have an 'else', skip it
+  // and get the AST for the compound statement
+  if (Token.token == T_ELSE) {
+    scan(&Token);
+    falseAST = compound_statement();
+  }
+  // Build and return the AST for this statement
+  return (mkastnode(A_IF, condAST, trueAST, falseAST, 0));
+}
+```
+
+지금 당장, 나는 `if (x-2)`같은 input을 다루고 싶지 않다. 그래서 나는 `binexpr()`의 binary expression을 6개의 비교 연산자인 A_EQ, A_NE, A_LT, A_GT, A_LE 또는 A_GE중의 하나인 root를 가지도록 제한했다.
+
+
+
+## The Third Child
+
+나는 적절하게 설명하지 않고 과거에 어떤 것을 밀수 했었다. `if_statement()`의 마지막 줄에, 나는 다음으로 AST node를 구성한다 :
+
+```c
+	mkastnode(A_IF, condAST, trueAST, falseAST, 0);
+```
+
+이것은 세 개의 AST sub-trees이다! 여기에서 무엇이 되고 있는가? 너가 볼 수 있 듯이, 그 IF statement는 세 개의 자식을 가질 것이다:
+
+* condition을 evaluates하는 sub-tree
+* 즉시 다음에 나오는 compound statement
+* 'else' keyword 이후의 optional compound statement
+
+그래서 우리는 이제 세 개의 자식을 가지는 AST node structure가 필요하다 (`defs.h` 에서) :
+
+```c
+// AST node types.
+enum {
+  ...
+  A_GLUE, A_IF
+};
+
+// Abstract Syntax Tree structure
+struct ASTnode {
+  int op;                       // "Operation" to be performed on this tree
+  struct ASTnode *left;         // Left, middle and right child trees
+  struct ASTnode *mid;
+  struct ASTnode *right;
+  union {
+    int intvalue;               // For A_INTLIT, the integer value
+    int id;                     // For A_IDENT, the symbol slot number
+  } v;
+};
+```
+
+따라서, 한 A_IF tree는 이렇게 보인다:
+
+```
+                      IF
+                    / |  \
+                   /  |   \
+                  /   |    \
+                 /    |     \
+                /     |      \
+               /      |       \
+      condition   statements   statements
+```
+
+
+
+## Glue AST Nodes
+
+또한 새로운 A_GLUE AST node type이 있다. 이것은 무엇을 위해 사용되는가? 우리는 이제 많은 statements를가진 단일의 AST tree를 구성한다. 그래서, 우리는 그것들을 함께 붙이는 방법이 필요하다.
+
+`compound_statement()` loop 코드의 끝을 다시 보아라:
+
+```c
+      if (left != NULL)
+        left = mkastnode(A_GLUE, left, NULL, tree, 0);
+```
+
+우리가 새로운 sub-tree를 얻을 때 마다, 우리는 그것을 존재하는 tree에 붙여준다. 그래서, 이 statements의 순서에 대해:
+
+```
+    stmt1;
+    stmt2;
+    stmt3;
+    stmt4;
+```
+
+우리는 다음을 결국에 가지게 된다:
+
+```
+             A_GLUE
+              /  \
+          A_GLUE stmt4
+            /  \
+        A_GLUE stmt3
+          /  \
+      stmt1  stmt2
+```
+
+그리고, 우리가 그 tree를 depth-first로 left에서 right로 탐색함에 따라, 이것은 여전히 올바른 순서로 assembly code를생성한다.
+
+
+
+## The Generic Code Generator
+
+
+
+
+
 
 
 
