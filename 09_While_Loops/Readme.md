@@ -47,8 +47,36 @@ WHILE loop를 위한 BNF grammar는 다음이다:
 그리고 우리는 이것을 파싱하기 위해 `stmt.c`에서 함수가 필요하다. 여기에 그것이 있다; IF 문의 파싱과 비교하여 이것의 간단함에 주목해라:
 
 ```c
-// Parse a WHILE 
+// Parse a WHILE statement
+// and return its AST
+struct ASTnode *while_statement(void) {
+  struct ASTnode *condAST, *bodyAST;
+
+  // Ensure we have 'while' '('
+  match(T_WHILE, "while");
+  lparen();
+
+  // Parse the following expression
+  // and the ')' following. Ensure
+  // the tree's operation is a comparison.
+  condAST = binexpr(0);
+  if (condAST->op < A_EQ || condAST->op > A_GE)
+    fatal("Bad comparison operator");
+  rparen();
+
+  // Get the AST for the compound statement
+  bodyAST = compound_statement();
+
+  // Build and return the AST for this statement
+  return (mkastnode(A_WHILE, condAST, NULL, bodyAST, 0));
+}
 ```
+
+우리는 새로운 AST node type이 필요하다.  A_WHILE. 이것은 `defs.h`에 추가되었다. 이 노드는 그 condition을 evaluate할 left child sub-tree를 가지고, WHILE loop의 body인 compound statement를 위한 right child sub-tree를 가진다.
+
+
+
+## Generic Code Generation
 
 
 
