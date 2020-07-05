@@ -110,6 +110,8 @@ struct ASTnode *if_statement(void) {
   return (mkastnode(A_IF, condAST, trueAST, falseAST, 0));
 }
 
+// while_statement: 'while' '(' true_false_expression ')' compound_statement ;
+// 
 // Parse a WHILE statement
 // and return its AST
 struct ASTnode *while_statement(void) {
