@@ -167,35 +167,128 @@ struct ASTnode *compound_statement(void) {
 
 ## Parsing FOR Loops
 
+위의 FOR loops를 위한 BNF syntax가 주어진다면, 이것은 간단하다. 우리가 원하는 AST tree의 shape가 주어진다면, 이 tree를 빌드하는 코드는 또한 간다하다. 여기에 코드가 있따:
+
+```c
+// Parse a FOR statement
+// and return its AST
+static struct ASTnode *for_statement(void) {
+  struct ASTnode *condAST, *bodyAST;
+  struct ASTnode *preopAST, *postopAST;
+  struct ASTnode *tree;
+
+  // Ensure we have 'for' '('
+  match(T_FOR, "for");
+  lparen();
+
+  // Get the pre_op statement and the ';'
+  preopAST= single_statement();
+  semi();
+
+  // Get the condition and the ';'
+  condAST = binexpr(0);
+  if (condAST->op < A_EQ || condAST->op > A_GE)
+    fatal("Bad comparison operator");
+  semi();
+
+  // Get the post_op statement and the ')'
+  postopAST= single_statement();
+  rparen();
+
+  // Get the compound statement which is the body
+  bodyAST = compound_statement();
+
+  // For now, all four sub-trees have to be non-NULL.
+  // Later on, we'll change the semantics for when some are missing
+
+  // Glue the compound statement and the postop tree
+  tree= mkastnode(A_GLUE, bodyAST, NULL, postopAST, 0);
+
+  // Make a WHILE loop with the condition and this new body
+  tree= mkastnode(A_WHILE, condAST, NULL, tree, 0);
+
+  // And glue the preop tree to the A_WHILE tree
+  return(mkastnode(A_GLUE, preopAST, NULL, tree, 0));
+}
+```
 
 
 
+## Generating the Assembly Code
+
+우리가 했던 것은 WHILE loop를 가진 트리를 어떤 sub-trees가 glue된 채 함께 종합하는 것이다. 그래서 compiler의 generation side에 변화는 없다.
 
 
 
+## Trying It Out
+
+그 `tests/input07` file은 그것안에 이 프로그램을 갖는다:
+
+```c
+{
+  int i;
+  for (i= 1; i <= 10; i= i + 1) {
+    print i;
+  }
+}
+```
+
+우리가 `make test7`를 할 떄, 우리는 이 output을 얻는다:
+
+```shell
+cc -o comp1 -g cg.c decl.c expr.c gen.c main.c misc.c scan.c
+    stmt.c sym.c tree.c
+./comp1 tests/input07
+cc -o out out.s
+./out
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+```
+
+그리고 여기에 그 관련된 assembly output이 있다:
+
+```assembly
+	.comm	i,8,8
+	movq	$1, %r8
+	movq	%r8, i(%rip)		# i = 1
+L1:
+	movq	i(%rip), %r8
+	movq	$10, %r9
+	cmpq	%r9, %r8		# Is i < 10?
+	jg	L2			# i >= 10, jump to L2
+	movq	i(%rip), %r8
+	movq	%r8, %rdi
+	call	printint		# print i
+	movq	i(%rip), %r8
+	movq	$1, %r9
+	addq	%r8, %r9		# i = i + 1
+	movq	%r9, i(%rip)
+	jmp	L1			# Jump to top of loop
+L2:
+```
 
 
 
+## Conclusion and What's Next
 
+우리는 이제 우리의 언어에서 합리적인 개수의 control structures를 가진다 : IF statements, WHILE loops and FOR loops. 그리고 질문은 다음으로 무엇을 다룰 것인가? 우리가 볼 수 있는 많은 것들이 있다:
 
+* types
+* local versus global things
+* functions
+* arrays and pointers
+* structures and unions
+* auto, static and friends
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+나는 functions을 보기로 결정했다. 그래서, 우리의 compiler writing journey의 다음 파트에서, 우리는 우리의 언어에 함수를 추가하는 몇 가지 단계들의 첫 번째를 시작할 것이다.
 
 
 
