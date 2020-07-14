@@ -5,6 +5,9 @@
 // Parsing of statements
 // Copyright (c) 2019 Warren Toomey, GPL3
 
+// Prototypes
+static struct ASTnode *single_statement(void);
+
 // compound_statement:          // empty, i.e. no statement
 //      |      statement
 //      |      statement statements
