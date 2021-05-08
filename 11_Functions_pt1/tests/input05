@@ -1,10 +1,10 @@
+void main()
 {
-    int a; int b;
-    a = 2049; b = 8;
-    if (a > b) {
-        print a;
-    }
-    else {
-        print b;
-    }
+  int i; int j;
+  i=6; j=12;
+  if (i < j) {
+    print i;
+  } else {
+    print j;
+  }
 }
