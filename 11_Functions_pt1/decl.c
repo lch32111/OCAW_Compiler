@@ -23,7 +23,7 @@ void var_declaration(void) {
 struct ASTnode *function_declaration(void) {
     struct ASTnode *tree;
     int nameslot;
-
+    
     // Find the 'void', the identifier, and the '(' ')'.
     // For now, do nothing with them
     match(T_VOID, "void");

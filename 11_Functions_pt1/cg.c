@@ -54,11 +54,7 @@ void cgpreamble() {
     "\tcall	printf@PLT\n"
 	"\tnop\n"
 	"\tleave\n"
-	"\tret\n"
-	"\n"
-	"\t.globl\tmain\n"
-	"\t.type\tmain, @function\n"
-	"main:\n" "\tpushq\t%rbp\n" "\tmovq	%rsp, %rbp\n", Outfile);
+	"\tret\n" "\n", Outfile);
 }
 
 // Print out a function preamble

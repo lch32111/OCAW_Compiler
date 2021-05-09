@@ -112,6 +112,10 @@ static int keyword(char *s) {
     if (!strcmp(s, "print"))
       return (T_PRINT);
     break;
+  case 'v':
+    if (!strcmp(s, "void"))
+        return (T_VOID);
+    break;
   case 'w':
     if (!strcmp(s, "while"))
       return (T_WHILE);
@@ -203,7 +207,7 @@ int scan(struct token *t) {
     } else if (isalpha(c) || '_' == c) {
       // Read in a keyword or identifier
       scanident(c, Text, TEXTLEN);
-
+      
       // If it's a recognised keyword, return that token
       if (tokentype = keyword(Text)) {
 	    t->token = tokentype;
